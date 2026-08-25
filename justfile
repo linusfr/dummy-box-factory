@@ -66,6 +66,22 @@ build-one faction cards="":
 		printf '%-40s updated\n' "$out"
 	fi
 
+# Print-test just the magnet corner, both halves, eg `just corner jinteki`
+corner faction="generic":
+	#!/usr/bin/env bash
+	set -euo pipefail
+	tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+	mkdir -p out
+	out="out/corner_{{ faction }}.stl"
+	if ! {{ openscad }} -D 'faction="{{ faction }}"' -D 'render_mode="corner"' \
+			-D 'card_sleeving="{{ sleeving }}"' -D 'magnet_diameter={{ magnets }}' \
+			-o "$out" src/deckbox.scad > "$tmp/log" 2>&1; then
+		cat "$tmp/log"; exit 1
+	fi
+	grep -E 'WARNING|ERROR' "$tmp/log" || true
+	sed -n 's/^ECHO: "Corner coupon/Corner coupon/p' "$tmp/log" | tr -d '"'
+	printf '%-40s written\n' "$out"
+
 # Print one faction's size, eg `just size jinteki 50` or `just sleeving=double size nbn`
 size faction cards="":
 	#!/usr/bin/env bash
@@ -132,6 +148,12 @@ previews:
 			--imgsize=900,1000 --projection=o --camera=39,16,50,62,0,28,330 \
 			--colorscheme=DeepOcean src/deckbox.scad 2>/dev/null
 	done
+	# and the corner coupon, from an angle that shows the sleeve notch
+	printf 'rendering corner coupon\n'
+	{{ openscad }} --render -D 'faction="generic"' -D 'render_mode="corner"' \
+		-o images/renders/corner_test.png \
+		--imgsize=900,700 --projection=o --camera=12,30,12,50,0,300,165 \
+		--colorscheme=DeepOcean src/deckbox.scad 2>/dev/null
 
 # ==========================================
 # CHECKS

@@ -50,6 +50,7 @@ just build-one jinteki 50    # ...or just the one
 just sleeving=double build   # ...for double-sleeved decks
 just magnets=0 build         # ...with no magnet pockets
 just sizes                   # dimensions only, nothing exported
+just corner                  # ...just one magnet corner, to test the fit
 ```
 
 Non-standard builds land in `out/` rather than `files/`; `just clean` bins them.
@@ -101,15 +102,42 @@ one in the lid, one in the body — at diagonally opposite corners.
 
 Nothing about the outside changes. 3 mm is the largest that fits inside the
 existing corner without the box growing a lump: the pocket tucks between the
-outer chamfer and the card cavity, the sleeve is notched 3.8 mm at those two
+outer chamfer and the card cavity, the sleeve is notched away at those two
 corners, and the lid keeps material there instead of hollowing it for the
 sleeve. All of that is internal.
+
+The notch runs the **full height** of the sleeve, and it has to. The lid's
+column sits at the mouth of its sleeve pocket, so the whole sleeve travels past
+it on the way in — notch only as far down as the magnet reaches and the lid
+jams a millimetre after it touches down, while still looking perfect in a
+render, because the two halves clear each other seated and nowhere else.
 
 They hold roughly 200 g, comfortably more than a loaded box weighs. The sleeve
 is still the real closure; the magnets just make it click.
 
 Glue them in against the 0.2 mm recess, and **watch the polarity** — one flipped
 magnet gives you a lid that pushes itself off. Mark the stack before you start.
+
+### Test the corner first
+
+```bash
+just corner            # generic, into out/corner_generic.stl
+just corner jinteki    # ...or a specific faction
+```
+
+![the corner coupon](images/renders/corner_test.png)
+
+Both halves cropped to one magnet corner, 25 mm along each wall, plated the way
+the real STLs are. The full-height notch is the slot up the sleeve corner on the
+right; the lid's column and its pocket are on the left. It carries the whole closure — pocket, notch, column, sleeve
+— so it tells you whether the lid seats and whether your magnets drop into
+their pockets, in a few minutes of printing instead of a few hours.
+
+It's a scrap: it lands in `out/`, and `just clean` bins it.
+
+Two things it won't tell you. It's one corner, so it can rock in ways the whole
+box can't — sliding it on straight is on you. And 25 mm of sleeve friction is
+not 78 mm of it, so judge `sleeve_xy_gap` on a real box.
 
 ### Printing without magnets
 
@@ -171,7 +199,7 @@ erode/dilates every emblem (`emblem_cleanup_epsilon`) to head it off.
 | `src/emblems/` | `<faction>.dxf`, generated from `svg_sources/<faction>.svg` |
 | `files/` | Exported print plates |
 | `out/` | Custom builds; gitignored |
-| `images/renders/` | A render per faction |
+| `images/renders/` | A render per faction, plus the corner coupon |
 
 `just build` only rewrites plates whose geometry actually changed, so rebuilds
 leave the tree clean.

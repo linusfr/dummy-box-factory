@@ -259,6 +259,40 @@ deckbox_outer_margin= ((magnet_diameter > 0) && magnet_needs_post)
 	? max(0, magnet_post_size - total_sidewall_thickness)
 	: 0;
 
+// How tall the column the lid keeps has to be: the pocket, plus a wall over
+// its roof so the magnet doesn't show through the outside of the lid.
+magnet_column_height= (magnet_recess + magnet_thickness + (2 * magnet_wall));
+
+// How tall the notch in the sleeve has to be, which is a different number: the
+// lid's column stands at the mouth of its sleeve pocket, so the whole sleeve
+// travels past it on the way in. Notch only as far as the magnet reaches and
+// the lid jams a millimetre after it touches down -- the halves clear each
+// other seated and nowhere else. So the notch runs the sleeve's full height,
+// and the grip it costs is the price of the closure.
+magnet_notch_height= (sleeve_height + sleeve_z_gap);
+
+// ---------------------------------------------------------------------------
+// Corner test coupon. render_mode="corner" crops both halves down to one
+// magnet corner and plates them, so the fit that actually matters -- the lid
+// travelling down past the sleeve notch onto the magnet -- can be printed in
+// minutes rather than hours. Everything it carries is real geometry, straight
+// out of the same modules the full plate uses.
+// ---------------------------------------------------------------------------
+
+// How far along each wall the coupon reaches from the corner. Long enough to
+// hold by hand and to feel the sleeve friction; short enough to be a scrap.
+corner_test_size= 25;
+
+// Clamped so a very shallow box can't ask for a coupon deeper than it is.
+corner_test_span= min(corner_test_size, deckbox_width, deckbox_depth);
+
+// How far below the seam the coupon starts. It has to swallow the body's
+// magnet pocket and still leave a flat face for the bed.
+corner_test_skirt= 10;
+
+// Which corner to cut it from. The first drilled one, unless told otherwise.
+corner_test_index= (len(magnet_corners) > 0) ? magnet_corners[0] : 0;
+
 unit_hexagon_inner_radius= (sqrt(3) / 2);
 
 unit_hexagon_points= [
@@ -627,7 +661,10 @@ module convert_to_deckbox_bottom()
 		if (magnet_diameter > 0)
 		{
 			for (index= magnet_corners)
-				deckbox_magnet_column(index, extra_radius= sleeve_xy_gap);
+				deckbox_magnet_column(
+					index,
+					extra_radius= sleeve_xy_gap,
+					height= magnet_notch_height);
 		}
 	}
 }
@@ -702,20 +739,19 @@ module deckbox_corner_post(index)
 // does not change.
 module deckbox_magnet_column(
 	index,
-	extra_radius= 0)
+	extra_radius= 0,
+	height= magnet_column_height)
 {
 	origin= magnet_corner_origin(index);
 	sign= magnet_corner_sign(index);
 	seam= (deckbox_total_height - deckbox_lid_height);
 
-	// only as deep as the magnet needs: notching the sleeve over its whole
-	// height would give away grip for nothing
 	translate([
 		(origin[0] + (sign[0] * magnet_offset)),
 		(origin[1] + (sign[1] * magnet_offset)),
 		(seam - csg_overlap)])
 	cylinder(
-		h= (magnet_recess + magnet_thickness + (2 * magnet_wall) + (2 * csg_overlap)),
+		h= (height + (2 * csg_overlap)),
 		r= (magnet_clearance_radius + extra_radius),
 		$fn= 48);
 }
@@ -786,9 +822,82 @@ module deckbox_plate(
 	}
 }
 
+// Lower-left corner of the coupon's footprint, whichever corner of the box it
+// was cut from, so it can be dragged back to the origin afterwards.
+function corner_test_footprint(index) =
+	let (origin= magnet_corner_origin(index),
+		sign= magnet_corner_sign(index))
+	[min(origin[0], (origin[0] + (sign[0] * corner_test_span))),
+	 min(origin[1], (origin[1] + (sign[1] * corner_test_span)))];
+
+module corner_test_crop(
+	index,
+	z_min,
+	z_max)
+{
+	footprint= corner_test_footprint(index);
+
+	translate([
+		(footprint[0] - csg_overlap),
+		(footprint[1] - csg_overlap),
+		z_min])
+	cube(size= [
+		(corner_test_span + (2 * csg_overlap)),
+		(corner_test_span + (2 * csg_overlap)),
+		(z_max - z_min)]);
+}
+
+// No emblem on either coupon: it lives in the middle of a face, nowhere near a
+// corner, and importing the DXF only to crop it away wastes a render.
+module deckbox_corner_test_bottom(index)
+{
+	footprint= corner_test_footprint(index);
+	base= ((deckbox_total_height - deckbox_lid_height) - corner_test_skirt);
+
+	translate([-footprint[0], -footprint[1], -base])
+	intersection()
+	{
+		convert_to_deckbox_bottom()
+		decorated_deckbox_body("", 1.0, [0, 0]);
+
+		corner_test_crop(index, base, deckbox_total_height);
+	}
+}
+
+module deckbox_corner_test_lid(index)
+{
+	footprint= corner_test_footprint(index);
+	seam= (deckbox_total_height - deckbox_lid_height);
+
+	// flipped seam-up, the way the lid sits on the real plate
+	translate([0, corner_test_span, 0])
+	rotate([180, 0, 0])
+	translate([-footprint[0], -footprint[1], -deckbox_total_height])
+	intersection()
+	{
+		convert_to_deckbox_lid()
+		decorated_deckbox_body("", 1.0, [0, 0]);
+
+		corner_test_crop(index, (seam - csg_overlap), deckbox_total_height);
+	}
+}
+
+module deckbox_corner_test_plate(index)
+{
+	union()
+	{
+		deckbox_corner_test_bottom(index);
+
+		translate([0, (corner_test_span + plating_xy_separation), 0])
+		deckbox_corner_test_lid(index);
+	}
+}
+
 assert(
-	((render_mode == "plate") || (render_mode == "whole")),
-	str("unknown render_mode \"", render_mode, "\" -- use \"plate\" or \"whole\""));
+	((render_mode == "plate") || (render_mode == "whole") ||
+		(render_mode == "corner")),
+	str("unknown render_mode \"", render_mode,
+		"\" -- use \"plate\", \"whole\" or \"corner\""));
 
 if (render_mode == "whole")
 {
@@ -796,6 +905,19 @@ if (render_mode == "whole")
 		emblem_filename= faction_emblem_filename,
 		emblem_scale= faction_emblem_scale,
 		emblem_xy_offset= faction_emblem_xy_offset);
+}
+else if (render_mode == "corner")
+{
+	if (magnet_diameter <= 0)
+	{
+		echo(str("WARNING: magnet_diameter is 0, so this coupon has no pocket, ",
+			"no notch and nothing to test."));
+	}
+
+	echo(str("Corner coupon: corner ", corner_test_index, ", ",
+		corner_test_span, "mm along each wall."));
+
+	deckbox_corner_test_plate(corner_test_index);
 }
 else
 {
