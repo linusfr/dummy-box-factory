@@ -38,7 +38,7 @@ Sleeve brands vary. Stand a known stack on edge, measure it, edit the row.
 
 ```bash
 nix-shell                    # or: direnv allow
-just build                   # all seven plates into files/
+just build                   # all eight plates into files/
 just build 50                # ...at 50 cards each
 just build-one jinteki 50    # ...or just the one
 just sleeving=double build   # ...for double-sleeved decks
@@ -89,13 +89,14 @@ Every run echoes the resulting cavity and outer size.
 
 ## New emblems
 
-Add a row to `faction_table` and drop a line-segments-only DXF into
-`src/emblems/`. Hand-trace it in Inkscape
+Add a row to `faction_table`, then drop the artwork in named for it —
+`svg_sources/<faction>.svg` converts to `emblems/<faction>.dxf`, and
+`just emblems` picks it up with no further wiring. Hand-trace in Inkscape
 ([tutorial](http://repraprip.blogspot.com/2011/05/inkscape-to-openscad-dxf-tutorial.html)),
-or convert a filled SVG:
+or convert a filled SVG (paths only — `<line>` elements are ignored):
 
 ```bash
-python3 src/svg2dxf.py emblem.svg src/emblems/my_emblem.dxf 76
+python3 src/svg2dxf.py src/emblems/svg_sources/mine.svg src/emblems/mine.dxf 76
 ```
 
 The `76` normalises the longest side, so every faction shares one
@@ -114,7 +115,7 @@ erode/dilates every emblem (`emblem_cleanup_epsilon`) to head it off.
 | `src/deckbox.scad` | The generator, driven by `faction_table` |
 | `src/svg2dxf.py` | Filled SVG → OpenSCAD-importable DXF |
 | `src/stl_equal.py` | Compares STLs by geometry, not bytes |
-| `src/emblems/` | A DXF per faction, plus the SVG sources |
+| `src/emblems/` | `<faction>.dxf`, generated from `svg_sources/<faction>.svg` |
 | `files/` | Exported print plates |
 | `out/` | Custom builds; gitignored |
 | `images/renders/` | A render per faction |
@@ -122,10 +123,8 @@ erode/dilates every emblem (`emblem_cleanup_epsilon`) to head it off.
 `just build` only rewrites plates whose geometry actually changed, so rebuilds
 leave the tree clean.
 
-`*_handtraced_original.*` and `files/deckbox_generic.stl` are Austin's own work,
-kept verbatim and never regenerated. The `generic` row in `faction_table` builds
-an emblem-less box at today's settings, and scales like any faction — a plain
-`just build` skips it so his original survives.
+`generic` is an eighth row in `faction_table`: the same box with no emblem, for
+anyone who wants the shape without the faction.
 
 ## Development
 
@@ -137,7 +136,7 @@ just ci
 [Conventional commits](https://www.conventionalcommits.org/), enforced by
 commitizen. Pushes to `main` cut a
 [semantic release](https://github.com/go-semantic-release/semantic-release) with
-all seven STLs attached.
+every STL attached.
 
 ## Credits
 

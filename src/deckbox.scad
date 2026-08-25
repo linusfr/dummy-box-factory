@@ -72,15 +72,15 @@ extra_card_slots= 1;
 
 // name             side      cards  emblem dxf                  scale  xy offset
 faction_table= [
-	["anarch",       "runner",  40, "anarch_emblem.dxf",         0.7, [0, 0]],
-	["criminal",     "runner",  40, "criminal_emblem.dxf",       0.7, [0, 0]],
-	["shaper",       "runner",  40, "shaper_emblem.dxf",         0.7, [0, 0]],
-	["haas_bioroid", "corp",    44, "haas_bioroid_emblem.dxf",   0.7, [0, 0]],
-	["jinteki",      "corp",    44, "jinteki_emblem.dxf",        0.7, [0, 0]],
-	["nbn",          "corp",    44, "nbn_emblem.dxf",            0.7, [0, 0]],
+	["anarch",       "runner",  40, "anarch.dxf",         0.7, [0, 0]],
+	["criminal",     "runner",  40, "criminal.dxf",       0.7, [0, 0]],
+	["shaper",       "runner",  40, "shaper.dxf",         0.7, [0, 0]],
+	["haas_bioroid", "corp",    44, "haas_bioroid.dxf",   0.7, [0, 0]],
+	["jinteki",      "corp",    44, "jinteki.dxf",        0.7, [0, 0]],
+	["nbn",          "corp",    44, "nbn.dxf",            0.7, [0, 0]],
 	// the W is wider relative to its height than the others, so it has to come
 	// down a little to stay inside the hexagonal frame
-	["weyland",      "corp",    44, "weyland_emblem.dxf",        0.63, [0, 0]],
+	["weyland",      "corp",    44, "weyland.dxf",        0.63, [0, 0]],
 
 	// No emblem at all, sized for the largest of the above.
 	["generic",      "corp",    44, "",                          1.0, [0, 0]]

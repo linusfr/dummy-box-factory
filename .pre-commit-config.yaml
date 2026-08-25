@@ -15,12 +15,12 @@ repos:
         exclude: ^justfile$
       # STL and DXF exports are generated text; leave their bytes alone
       - id: end-of-file-fixer
-        exclude: (\.(stl|dxf)$|^src/deckbox_original\.scad$|_handtraced_original\.)
+        exclude: &generated \.(stl|dxf)$
       - id: trailing-whitespace
-        exclude: (\.(stl|dxf)$|^src/deckbox_original\.scad$|_handtraced_original\.)
+        exclude: *generated
         files: ^(?!.*\.md$).*
       - id: mixed-line-ending
-        exclude: (\.(stl|dxf)$|^src/deckbox_original\.scad$|_handtraced_original\.)
+        exclude: *generated
         args: ["--fix=lf"]
 
   - repo: https://github.com/commitizen-tools/commitizen

@@ -4,10 +4,7 @@ openscad := env_var_or_default("OPENSCAD", "openscad")
 # "none", "single" or "double"; override per invocation with
 #   just sleeving=double build
 sleeving := env_var_or_default("SLEEVING", "single")
-factions := "anarch criminal shaper haas_bioroid jinteki nbn weyland"
-# generic gets a preview but no committed STL: files/deckbox_generic.stl is
-# the preserved original Thingiverse download, not something we regenerate
-preview_factions := factions + " generic"
+factions := "anarch criminal shaper haas_bioroid jinteki nbn weyland generic"
 
 # ==========================================
 # DEFAULT
@@ -25,13 +22,7 @@ preview_factions := factions + " generic"
 build cards="":
 	#!/usr/bin/env bash
 	set -euo pipefail
-	targets='{{ factions }}'
-	if [ -n '{{ cards }}' ] || [ '{{ sleeving }}' != single ]; then
-		# non-standard builds land in out/, so generic can join in without
-		# endangering the preserved files/deckbox_generic.stl download
-		targets='{{ preview_factions }}'
-	fi
-	for faction in $targets; do
+	for faction in {{ factions }}; do
 		just sleeving='{{ sleeving }}' build-one "$faction" '{{ cards }}'
 	done
 
@@ -112,21 +103,19 @@ clean:
 emblems:
 	#!/usr/bin/env bash
 	set -euo pipefail
-	cd src
-	python3 svg2dxf.py emblems/svg_sources/Anarch.svg             emblems/anarch_emblem.dxf       76
-	python3 svg2dxf.py emblems/svg_sources/Criminal.svg           emblems/criminal_emblem.dxf     76
-	python3 svg2dxf.py emblems/svg_sources/Shaper-smooth.svg      emblems/shaper_emblem.dxf       76
-	python3 svg2dxf.py emblems/svg_sources/haas-bioroid.svg       emblems/haas_bioroid_emblem.dxf 76
-	python3 svg2dxf.py emblems/svg_sources/Jinteki_Simple.svg     emblems/jinteki_emblem.dxf      76
-	python3 svg2dxf.py emblems/svg_sources/NBN.svg                emblems/nbn_emblem.dxf          76
-	python3 svg2dxf.py emblems/svg_sources/Weyland-Consortium.svg emblems/weyland_emblem.dxf      76
+	for faction in {{ factions }}; do
+		svg="src/emblems/svg_sources/${faction}.svg"
+		# generic is deliberately emblem-less
+		[ -f "$svg" ] || continue
+		python3 src/svg2dxf.py "$svg" "src/emblems/${faction}.dxf" 76
+	done
 
 # Refresh the preview render for every faction into images/renders/
 previews:
 	#!/usr/bin/env bash
 	set -euo pipefail
 	mkdir -p images/renders
-	for faction in {{ preview_factions }}; do
+	for faction in {{ factions }}; do
 		printf 'rendering %s\n' "$faction"
 		{{ openscad }} -D "faction=\"$faction\"" -o "images/renders/deckbox_${faction}.png" \
 			--imgsize=800,800 --projection=o --camera=39,35,46,68,0,22,320 \
@@ -144,8 +133,7 @@ check-emblems:
 	tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 	printf 'difference() {\n  linear_extrude(height = 0.32) scale(0.7) import(EMBLEM);\n  translate([100, 100, 100]) cube(1);\n}\n' > "$tmp/probe.scad"
 	rc=0
-	for dxf in src/emblems/*_emblem.dxf; do
-		case "$dxf" in *handtraced*) continue ;; esac
+	for dxf in src/emblems/*.dxf; do
 		if {{ openscad }} -o "$tmp/out.stl" -D "EMBLEM=\"$PWD/$dxf\"" "$tmp/probe.scad" 2>&1 \
 				| grep -q 'not closed'; then
 			printf '%-32s NOT A CLOSED MESH\n' "$(basename "$dxf")"; rc=1
