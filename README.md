@@ -20,17 +20,23 @@ moves.
 
 | Side | Factions | Deck | Box |
 |---|---|---|---|
-| Runner | Anarch, Criminal, Shaper | 40 + ID | 78 × **31.1** × 100 mm |
-| Corp | Haas-Bioroid, Jinteki, NBN, Weyland | 44 + ID | 78 × **33.2** × 100 mm |
+| Runner | Anarch, Criminal, Shaper | 40 + ID | 78 × **35.7** × 100 mm |
+| Corp | Haas-Bioroid, Jinteki, NBN, Weyland | 44 + ID | 78 × **38.1** × 100 mm |
 
 Depth is `cards × per-card thickness + 1.5 mm slack + walls`. Sleeves decide the
 rest — there's nearly 20 mm between bare and double-sleeved:
 
-| `card_sleeving` | mm/card | 45-card corp box |
-|---|---|---|
-| `none` | 0.31 | 78 × 23.6 × 100 mm |
-| `single` *(default)* | 0.525 | 78 × 33.2 × 100 mm |
-| `double` | 0.72 | 78 × 42.0 × 100 mm |
+| `card_sleeving` | mm/card | 45-card corp box | |
+|---|---|---|---|
+| `none` | 0.34 | 78 × 26.4 × 100 mm | **measured** |
+| `single` *(default)* | 0.6 | 78 × 38.1 × 100 mm | **measured** |
+| `double` | 0.72 | 78 × 43.5 × 100 mm | *estimated* |
+
+Measured with a caliper: a bare Netrunner card is 0.34 mm, and 31 cards in
+**Dragon Shield** sleeves came to 18.69 mm, so 0.603 each. Only `single` has
+actually been printed and filled, though. `double` is calculated rather than
+measured — double-sleeving varies a lot depending on which inner and outer you
+pair.
 
 Sleeve brands vary. Stand a known stack on edge, measure it, edit the row.
 
@@ -42,6 +48,7 @@ just build                   # all eight plates into files/
 just build 50                # ...at 50 cards each
 just build-one jinteki 50    # ...or just the one
 just sleeving=double build   # ...for double-sleeved decks
+just magnets=0 build         # ...with no magnet pockets
 just sizes                   # dimensions only, nothing exported
 ```
 
@@ -86,6 +93,52 @@ out solid. *(Checked against Orca 2.4.2.)*
 | You want a different capacity | card counts in `faction_table` |
 
 Every run echoes the resulting cavity and outer size.
+
+## Magnets
+
+**The boxes ship with magnet pockets, sized for 3 × 2 mm discs.** Two per box —
+one in the lid, one in the body — at diagonally opposite corners.
+
+Nothing about the outside changes. 3 mm is the largest that fits inside the
+existing corner without the box growing a lump: the pocket tucks between the
+outer chamfer and the card cavity, the sleeve is notched 3.8 mm at those two
+corners, and the lid keeps material there instead of hollowing it for the
+sleeve. All of that is internal.
+
+They hold roughly 200 g, comfortably more than a loaded box weighs. The sleeve
+is still the real closure; the magnets just make it click.
+
+Glue them in against the 0.2 mm recess, and **watch the polarity** — one flipped
+magnet gives you a lid that pushes itself off. Mark the stack before you start.
+
+### Printing without magnets
+
+```bash
+just magnets=0 build              # all of them
+just magnets=0 build-one criminal # just the one
+```
+
+Those land in `out/`, so they can't overwrite the committed plates. To make it
+permanent, set `magnet_diameter = 0` at the top of `src/deckbox.scad` — that
+drops the pockets, the sleeve notch and the lid column together, leaving the box
+exactly as it was before magnets existed.
+
+### Bigger magnets
+
+Anything over 3 mm needs the corners to grow into posts, which the script works
+out and adds by itself:
+
+| Ø | Corner post | Protrudes | ~Hold |
+|---|---|---|---|
+| 3 mm *(default)* | none | **0 mm** | ~200 g |
+| 4 mm | 5.8 mm | 1.75 mm | ~250 g |
+| 5 mm | 6.8 mm | 2.75 mm | ~375 g |
+
+Thickness is nearly free — up to about 18 mm before the pocket would break
+through the lid's top plate. Diameter is what costs you silhouette.
+
+If the lid ends up too grabby with magnets *and* sleeve friction, loosen
+`sleeve_xy_gap` rather than reaching for weaker magnets.
 
 ## New emblems
 

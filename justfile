@@ -4,6 +4,8 @@ openscad := env_var_or_default("OPENSCAD", "openscad")
 # "none", "single" or "double"; override per invocation with
 #   just sleeving=double build
 sleeving := env_var_or_default("SLEEVING", "single")
+# magnet diameter in mm; 0 prints the box with no pockets at all
+magnets := env_var_or_default("MAGNETS", "3")
 factions := "anarch criminal shaper haas_bioroid jinteki nbn weyland generic"
 
 # ==========================================
@@ -23,7 +25,7 @@ build cards="":
 	#!/usr/bin/env bash
 	set -euo pipefail
 	for faction in {{ factions }}; do
-		just sleeving='{{ sleeving }}' build-one "$faction" '{{ cards }}'
+		just sleeving='{{ sleeving }}' magnets='{{ magnets }}' build-one "$faction" '{{ cards }}'
 	done
 
 # Export one faction, optionally at a custom count, eg `just build-one jinteki 50`
@@ -31,11 +33,14 @@ build-one faction cards="":
 	#!/usr/bin/env bash
 	set -euo pipefail
 	tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
-	override=(-D 'card_sleeving="{{ sleeving }}"')
+	override=(-D 'card_sleeving="{{ sleeving }}"' -D 'magnet_diameter={{ magnets }}')
 	suffix=""
+	if [ '{{ magnets }}' != 3 ]; then
+		suffix="_magnets{{ magnets }}"
+	fi
 	if [ -n '{{ cards }}' ]; then
 		override+=(-D 'card_count_override={{ cards }}')
-		suffix="_{{ cards }}cards"
+		suffix="_{{ cards }}cards${suffix}"
 	fi
 	if [ '{{ sleeving }}' != single ]; then
 		suffix="${suffix}_{{ sleeving }}"
@@ -66,7 +71,7 @@ size faction cards="":
 	#!/usr/bin/env bash
 	set -euo pipefail
 	tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
-	override=(-D 'card_sleeving="{{ sleeving }}"')
+	override=(-D 'card_sleeving="{{ sleeving }}"' -D 'magnet_diameter={{ magnets }}')
 	if [ -n '{{ cards }}' ]; then
 		override+=(-D 'card_count_override={{ cards }}')
 	fi
@@ -83,7 +88,7 @@ sizes:
 	#!/usr/bin/env bash
 	set -euo pipefail
 	for faction in {{ factions }}; do
-		just sleeving='{{ sleeving }}' size "$faction"
+		just sleeving='{{ sleeving }}' magnets='{{ magnets }}' size "$faction"
 	done
 
 # Delete the exported STLs, including any custom builds under out/

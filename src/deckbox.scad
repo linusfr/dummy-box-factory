@@ -43,24 +43,29 @@ render_mode= "plate";
 card_sleeving= "single";
 
 // Thickness of one card at each sleeving level, in mm.
-//   none   -- a bare Netrunner card is a hair over 0.3mm
-//   single -- one standard sleeve; 0.525 is what the original design implied,
-//             since it quoted its 31.5mm cavity as "roughly 60 cards"
-//   double -- a perfect-fit inner sleeve plus a standard outer one
+//   none   -- MEASURED: a bare Netrunner card is 0.34mm with the caliper just
+//             kissing it. Not printed, but the number is real.
+//   single -- one standard sleeve. MEASURED: 31 sleeved cards came to 18.69mm
+//             on a caliper, so 0.603 each, rounded to 0.6. That was with
+//             Dragon Shield sleeves. The original design implied 0.525, which
+//             turned out to be optimistic by 15%.
+//   double -- a perfect-fit inner sleeve plus a standard outer one. ESTIMATED,
+//             untested; double-sleeving varies a lot by brand pairing.
 // Sleeve brands vary, so treat these as starting points: stand a known number
 // of cards on edge, measure the stack, divide, and edit the row you use.
 sleeving_table= [
-	["none",   0.31],
-	["single", 0.525],
+	["none",   0.34],
+	["single", 0.6],
 	["double", 0.72]
 ];
 
 // Bypass the table entirely with a measured value, eg -D card_thickness_override=0.6
 card_thickness_override= undef;
 
-// Breathing room (mm) on top of the deck's own thickness, so that a full deck
-// still slides in and out easily instead of wedging between the sleeve walls.
-deck_slack= 1.5;
+// Breathing room (mm) on top of the deck's own thickness, so a full deck still
+// slides in and out easily instead of wedging between the sleeve walls. 1.5 was
+// too mean in practice -- you want a finger's worth of play to lift cards out.
+deck_slack= 3;
 
 // Override the card count entirely, ignoring the faction's deck size and
 // extra_card_slots. Meant for the command line rather than for editing here:
@@ -137,7 +142,10 @@ deckbox_width= 78;
 deckbox_total_height= 100;
 deckbox_lid_height= 20;
 
-sleeve_height= 12;
+// Tall enough that a sleeved card sits fully inside the bottom half. At 12 the
+// bottom's interior was 90.8mm and cards stood proud of the open box; 15 gives
+// 93.8mm. Raise it if your sleeves are taller than that.
+sleeve_height= 15;
 sleeve_xy_gap= 0.25; // decrease if the fit is too loose, increase if it's too tight
 sleeve_z_gap= (4 * layer_height);
 sleeve_wall_thickness= (4 * nozzle_width);
@@ -155,6 +163,7 @@ hex_pattern_depth= (1.5 * nozzle_width);
 // island layer; at the full pattern depth it would be three, which is a lot of
 // disconnected first-layer area to ask the bed to hold.
 hex_pattern_floor_depth= layer_height;
+
 
 inner_sleeve_wall_thickness= sleeve_wall_thickness;
 outer_sleeve_wall_thickness= (sleeve_wall_thickness + hex_pattern_depth);
@@ -185,6 +194,7 @@ echo("This deckbox has a cavity-size of ", deck_cavity_size);
 echo("This deckbox has an outer size of ",
 	[deckbox_width, deckbox_depth, deckbox_total_height]);
 
+
 emblem_frame_width= (0.85 * deckbox_width);
 // The emblem is raised off the floor of its recessed frame, so matching the
 // pattern depth is what leaves it flush with the surrounding face.
@@ -208,6 +218,46 @@ plating_xy_separation= 10;
 bevel_size= 1; // length of the beveled edge itself is (sqrt(2) * bevel_size)
 
 csg_overlap= 0.02;
+
+// ---------------------------------------------------------------------------
+// Optional magnet closure. The sleeve is what actually holds the lid on; these
+// only add a snap. Leave magnet_diameter at 0 and the box is untouched: no
+// posts, no pockets, nothing to glue.
+//
+// The four corners thicken into posts so the silhouette stays symmetric, but
+// only the corners listed in magnet_corners are drilled. One pair is plenty --
+// the sleeve constrains the lid in X and Y, so the magnets only ever work in
+// straight tension, never in shear.
+// ---------------------------------------------------------------------------
+magnet_diameter= 3;                    // 0 disables the whole feature
+magnet_thickness= 2;
+magnet_fit_gap= 0.2;                   // pocket oversize, for glue and for print squish
+magnet_wall= (2 * nozzle_width);       // material left around the pocket
+magnet_recess= 0.2;                    // how far below the seam each magnet sits,
+                                       // so the pair never quite touches
+magnet_corners= [0, 2];                // 0..3 anticlockwise from the origin corner
+
+magnet_post_size= (magnet_diameter + magnet_fit_gap + (2 * magnet_wall));
+
+// Radius that has to stay in solid material: the pocket plus its wall.
+magnet_clearance_radius= (((magnet_diameter + magnet_fit_gap) / 2) + magnet_wall);
+
+// How far along the corner diagonal the pocket can sit. It has to clear the
+// chamfer on the outside and the deck cavity on the inside; if those two leave
+// no room, the corner is too small and needs a post bolted on.
+magnet_offset_min= (((magnet_clearance_radius * sqrt(2)) + bevel_size) / 2);
+magnet_offset_max= (total_sidewall_thickness - (magnet_clearance_radius / sqrt(2)));
+
+magnet_needs_post= (magnet_offset_min > magnet_offset_max);
+
+magnet_offset= magnet_needs_post
+	? (total_sidewall_thickness - (magnet_post_size / 2))
+	: ((magnet_offset_min + magnet_offset_max) / 2);
+
+// how far the posts stand proud, so the lid/bottom split can cut through them
+deckbox_outer_margin= ((magnet_diameter > 0) && magnet_needs_post)
+	? max(0, magnet_post_size - total_sidewall_thickness)
+	: 0;
 
 unit_hexagon_inner_radius= (sqrt(3) / 2);
 
@@ -494,25 +544,45 @@ module decorated_deckbox_body(
 {
 	have_emblem= (len(emblem_filename) > 1);
 
-	union()
+	difference()
 	{
-		difference()
+		union()
 		{
-			beveled_cube(size= [
-				deckbox_width,
-				deckbox_depth,
-				deckbox_total_height]);
+			difference()
+			{
+				beveled_cube(size= [
+					deckbox_width,
+					deckbox_depth,
+					deckbox_total_height]);
 
-			deckbox_body_decoration_negative(
-				have_emblem);
+				deckbox_body_decoration_negative(
+					have_emblem);
+			}
+
+			if (have_emblem)
+			{
+				deckbox_body_decoration_positive(
+					emblem_filename,
+					emblem_scale,
+					emblem_xy_offset);
+			}
+
+			// posts go on after the texture so they stay smooth, and only when
+			// the magnet is too fat for the corner to swallow
+			if ((magnet_diameter > 0) && magnet_needs_post)
+			{
+				for (index= [0 : 3]) deckbox_corner_post(index);
+			}
 		}
 
-		if (have_emblem)
+		// cut both halves' pockets here; the lid/bottom split separates them
+		if (magnet_diameter > 0)
 		{
-			deckbox_body_decoration_positive(
-				emblem_filename,
-				emblem_scale,
-				emblem_xy_offset);
+			for (index= magnet_corners)
+			{
+				deckbox_magnet_pocket(index, is_lid= false);
+				deckbox_magnet_pocket(index, is_lid= true);
+			}
 		}
 	}
 }
@@ -528,12 +598,12 @@ module convert_to_deckbox_bottom()
 				children(0);
 
 				translate([
-					-csg_overlap,
-					-csg_overlap,
+					-(csg_overlap + deckbox_outer_margin),
+					-(csg_overlap + deckbox_outer_margin),
 					(deckbox_total_height - deckbox_lid_height)])
 				cube(size= [
-					(deckbox_width + (2 * csg_overlap)),
-					(deckbox_depth + (2 * csg_overlap)),
+					(deckbox_width + (2 * (csg_overlap + deckbox_outer_margin))),
+					(deckbox_depth + (2 * (csg_overlap + deckbox_outer_margin))),
 					(deckbox_lid_height + csg_overlap)]);
 			}
 
@@ -552,6 +622,13 @@ module convert_to_deckbox_bottom()
 			total_sidewall_thickness,
 			floor_thickness])
 		cube(size= deck_cavity_size);
+
+		// clear the sleeve away from the magnet corners; the lid fills the gap
+		if (magnet_diameter > 0)
+		{
+			for (index= magnet_corners)
+				deckbox_magnet_column(index, extra_radius= sleeve_xy_gap);
+		}
 	}
 }
 
@@ -562,22 +639,31 @@ module convert_to_deckbox_lid()
 		children(0);
 
 		translate([
-			-csg_overlap,
-			-csg_overlap,
+			-(csg_overlap + deckbox_outer_margin),
+			-(csg_overlap + deckbox_outer_margin),
 			-csg_overlap])
 		cube(size= [
-			(deckbox_width + (2 * csg_overlap)),
-			(deckbox_depth + (2 * csg_overlap)),
+			(deckbox_width + (2 * (csg_overlap + deckbox_outer_margin))),
+			(deckbox_depth + (2 * (csg_overlap + deckbox_outer_margin))),
 			((deckbox_total_height - deckbox_lid_height) + csg_overlap)]);
 
-		translate([
-			outer_sleeve_wall_thickness,
-			outer_sleeve_wall_thickness,
-			((deckbox_total_height - deckbox_lid_height) - csg_overlap)])
-		cube(size= [
-			(deckbox_width - (2 * outer_sleeve_wall_thickness)),
-			(deckbox_depth - (2 * outer_sleeve_wall_thickness)),
-			(sleeve_height + sleeve_z_gap + csg_overlap)]);
+		// the sleeve pocket, but leaving the magnet corners solid
+		difference()
+		{
+			translate([
+				outer_sleeve_wall_thickness,
+				outer_sleeve_wall_thickness,
+				((deckbox_total_height - deckbox_lid_height) - csg_overlap)])
+			cube(size= [
+				(deckbox_width - (2 * outer_sleeve_wall_thickness)),
+				(deckbox_depth - (2 * outer_sleeve_wall_thickness)),
+				(sleeve_height + sleeve_z_gap + csg_overlap)]);
+
+			if (magnet_diameter > 0)
+			{
+				for (index= magnet_corners) deckbox_magnet_column(index);
+			}
+		}
 
 		translate([
 			total_sidewall_thickness,
@@ -585,6 +671,74 @@ module convert_to_deckbox_lid()
 			floor_thickness])
 		cube(size= deck_cavity_size);
 	}
+}
+
+function magnet_corner_origin(index) =
+	[((index == 0) || (index == 3)) ? 0 : deckbox_width,
+	 ((index == 0) || (index == 1)) ? 0 : deckbox_depth];
+
+function magnet_corner_sign(index) =
+	[((index == 0) || (index == 3)) ? 1 : -1,
+	 ((index == 0) || (index == 1)) ? 1 : -1];
+
+module deckbox_corner_post(index)
+{
+	origin= magnet_corner_origin(index);
+	sign= magnet_corner_sign(index);
+
+	translate([origin[0], origin[1], 0])
+	scale([sign[0], sign[1], 1])
+	translate([
+		(total_sidewall_thickness - magnet_post_size),
+		(total_sidewall_thickness - magnet_post_size),
+		0])
+	beveled_cube(size= [magnet_post_size, magnet_post_size, deckbox_total_height]);
+}
+
+// The sleeve stands on the inner part of the corner and the lid's wall there is
+// only outer_sleeve_wall thick, so neither half has room for a pocket as built.
+// This column is notched out of the sleeve and kept in the lid, giving both
+// halves a solid corner to drill. All of it is inside the box: the silhouette
+// does not change.
+module deckbox_magnet_column(
+	index,
+	extra_radius= 0)
+{
+	origin= magnet_corner_origin(index);
+	sign= magnet_corner_sign(index);
+	seam= (deckbox_total_height - deckbox_lid_height);
+
+	// only as deep as the magnet needs: notching the sleeve over its whole
+	// height would give away grip for nothing
+	translate([
+		(origin[0] + (sign[0] * magnet_offset)),
+		(origin[1] + (sign[1] * magnet_offset)),
+		(seam - csg_overlap)])
+	cylinder(
+		h= (magnet_recess + magnet_thickness + (2 * magnet_wall) + (2 * csg_overlap)),
+		r= (magnet_clearance_radius + extra_radius),
+		$fn= 48);
+}
+
+module deckbox_magnet_pocket(
+	index,
+	is_lid)
+{
+	origin= magnet_corner_origin(index);
+	sign= magnet_corner_sign(index);
+	inset= magnet_offset;
+	seam= (deckbox_total_height - deckbox_lid_height);
+
+	// both pockets open onto the seam, which faces up in each half's print
+	// orientation -- the lid is flipped on the plate -- so neither one bridges
+	translate([
+		(origin[0] + (sign[0] * inset)),
+		(origin[1] + (sign[1] * inset)),
+		is_lid ? seam : (seam - magnet_recess - magnet_thickness)])
+	cylinder(
+		h= (magnet_recess + magnet_thickness),
+		d= (magnet_diameter + magnet_fit_gap),
+		$fn= 48);
 }
 
 module deckbox_whole(
