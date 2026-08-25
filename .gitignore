@@ -1,0 +1,14 @@
+# direnv / nix
+.direnv/
+
+# OpenSCAD
+*.csg
+.*.scad.bak
+
+# Python
+__pycache__/
+*.pyc
+.ruff_cache/
+
+# custom card-count exports from `just build-one <faction> <cards>`
+files/deckbox_*cards.stl

@@ -1,0 +1,47 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      # exported STL plates run 1-5MB, so the default 500kB cap is too tight
+      - id: check-added-large-files
+        args: ["--maxkb=8192"]
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-yaml
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+        # justfile's `#!/usr/bin/env just --justfile` is a convention, not an
+        # exec shebang; it is run via `just`, never directly
+        exclude: ^justfile$
+      # STL and DXF exports are generated text; leave their bytes alone
+      - id: end-of-file-fixer
+        exclude: (\.(stl|dxf)$|^src/deckbox_original\.scad$)
+      - id: trailing-whitespace
+        exclude: (\.(stl|dxf)$|^src/deckbox_original\.scad$)
+        files: ^(?!.*\.md$).*
+      - id: mixed-line-ending
+        exclude: (\.(stl|dxf)$|^src/deckbox_original\.scad$)
+        args: ["--fix=lf"]
+
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.10.1
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.38.0
+    hooks:
+      - id: yamllint
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.0
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format

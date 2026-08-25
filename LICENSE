@@ -1,0 +1,36 @@
+# License
+
+## The deck box design
+
+Derived from **"Parametric Scifi Deck Box With Two Netrunner Emblems"** by
+Thingiverse user **Austin** — <https://www.thingiverse.com/thing:39997> — which
+is licensed **Creative Commons Attribution-ShareAlike**. The original listing
+does not state a version.
+
+This repository is a derivative work and is released under the same terms:
+**Creative Commons Attribution-ShareAlike** — <https://creativecommons.org/licenses/by-sa/4.0/>
+
+That covers `src/deckbox.scad`, the exported STLs in `files/`, and the renders
+in `images/renders/`.
+
+## The emblem artwork
+
+The faction emblems in `src/emblems/` are traced from the
+[Netrunner-Icon-Font](https://github.com/MWDelaney/Netrunner-Icon-Font) by
+Michael W. Delaney, which is MIT licensed:
+
+> Copyright (c) 2014 Michael W. Delaney
+>
+> Permission is hereby granted, free of charge, to any person obtaining a copy
+> of this software and associated documentation files (the "Software"), to deal
+> in the Software without restriction, including without limitation the rights
+> to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+> copies of the Software, and to permit persons to whom the Software is
+> furnished to do so, subject to the above copyright notice being included in
+> all copies or substantial portions of the Software.
+
+## Trademarks
+
+*Android: Netrunner* and the faction logos are the property of their respective
+rights holders. Nothing here is affiliated with or endorsed by them; these files
+are shared for personal, non-commercial printing.
