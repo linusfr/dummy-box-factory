@@ -1,6 +1,9 @@
 #!/usr/bin/env just --justfile
 
 openscad := env_var_or_default("OPENSCAD", "openscad")
+# "none", "single" or "double"; override per invocation with
+#   just sleeving=double build
+sleeving := env_var_or_default("SLEEVING", "single")
 factions := "anarch criminal shaper haas_bioroid jinteki nbn weyland"
 # generic gets a preview but no committed STL: files/deckbox_generic.stl is
 # the preserved original Thingiverse download, not something we regenerate
@@ -22,8 +25,14 @@ preview_factions := factions + " generic"
 build cards="":
 	#!/usr/bin/env bash
 	set -euo pipefail
-	for faction in {{ factions }}; do
-		just build-one "$faction" '{{ cards }}'
+	targets='{{ factions }}'
+	if [ -n '{{ cards }}' ] || [ '{{ sleeving }}' != single ]; then
+		# non-standard builds land in out/, so generic can join in without
+		# endangering the preserved files/deckbox_generic.stl download
+		targets='{{ preview_factions }}'
+	fi
+	for faction in $targets; do
+		just sleeving='{{ sleeving }}' build-one "$faction" '{{ cards }}'
 	done
 
 # Export one faction, optionally at a custom count, eg `just build-one jinteki 50`
@@ -31,13 +40,21 @@ build-one faction cards="":
 	#!/usr/bin/env bash
 	set -euo pipefail
 	tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+	override=(-D 'card_sleeving="{{ sleeving }}"')
+	suffix=""
 	if [ -n '{{ cards }}' ]; then
-		# keep custom sizes clear of the committed standard plates
-		out="files/deckbox_{{ faction }}_{{ cards }}cards.stl"
-		override=(-D 'card_count_override={{ cards }}')
+		override+=(-D 'card_count_override={{ cards }}')
+		suffix="_{{ cards }}cards"
+	fi
+	if [ '{{ sleeving }}' != single ]; then
+		suffix="${suffix}_{{ sleeving }}"
+	fi
+	if [ -n "$suffix" ]; then
+		# anything non-standard is a throwaway; keep it out of the committed set
+		mkdir -p out
+		out="out/deckbox_{{ faction }}${suffix}.stl"
 	else
 		out="files/deckbox_{{ faction }}.stl"
-		override=()
 	fi
 	if ! {{ openscad }} -D 'faction="{{ faction }}"' "${override[@]}" \
 			-o "$tmp/out.stl" src/deckbox.scad > "$tmp/log" 2>&1; then
@@ -47,45 +64,45 @@ build-one faction cards="":
 	# OpenSCAD reorders facets between runs, so compare shape, not bytes --
 	# otherwise every rebuild would dirty all seven committed plates
 	if [ -f "$out" ] && python3 src/stl_equal.py "$out" "$tmp/out.stl" >/dev/null; then
-		printf '%-34s unchanged\n' "$(basename "$out")"
+		printf '%-40s unchanged\n' "$out"
 	else
 		mv "$tmp/out.stl" "$out"
-		printf '%-34s updated\n' "$(basename "$out")"
+		printf '%-40s updated\n' "$out"
 	fi
 
-# Print one faction's size at a given card count, eg `just size jinteki 50`
+# Print one faction's size, eg `just size jinteki 50` or `just sleeving=double size nbn`
 size faction cards="":
 	#!/usr/bin/env bash
 	set -euo pipefail
 	tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+	override=(-D 'card_sleeving="{{ sleeving }}"')
 	if [ -n '{{ cards }}' ]; then
-		override=(-D 'card_count_override={{ cards }}')
-	else
-		override=()
+		override+=(-D 'card_count_override={{ cards }}')
 	fi
 	{{ openscad }} -D 'faction="{{ faction }}"' "${override[@]}" \
 		-o "$tmp/size.echo" src/deckbox.scad 2>/dev/null
+	# .echo export writes errors into the file and still exits 0, so check here
+	if grep -q '^ERROR' "$tmp/size.echo"; then
+		grep -E '^(ERROR|WARNING)' "$tmp/size.echo" >&2; exit 1
+	fi
 	sed 's/^ECHO: //' "$tmp/size.echo"
 
-# Print each faction's cavity and outer size without exporting anything
+# Print every faction's cavity and outer size without exporting anything
 sizes:
 	#!/usr/bin/env bash
 	set -euo pipefail
-	tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
 	for faction in {{ factions }}; do
-		# .echo evaluates the script and dumps echo() output without a CGAL render
-		{{ openscad }} -D "faction=\"$faction\"" -o "$tmp/sizes.echo" src/deckbox.scad 2>/dev/null
-		sed 's/^ECHO: //' "$tmp/sizes.echo"
+		just sleeving='{{ sleeving }}' size "$faction"
 	done
 
-# Delete the exported STLs, including any custom card-count builds
+# Delete the exported STLs, including any custom builds under out/
 clean:
 	#!/usr/bin/env bash
 	set -euo pipefail
 	for faction in {{ factions }}; do
 		rm -f "files/deckbox_${faction}.stl"
 	done
-	rm -f files/deckbox_*cards.stl
+	rm -rf out
 
 # ==========================================
 # ARTWORK

@@ -14,9 +14,14 @@
 // PRINTING: these two are the only printer-specific numbers. Every wall and
 // floor thickness below is a multiple of them, so change these and re-export
 // to get clean floors and sleeve-walls on your own machine.
+//
+// layer_height matters more than nozzle_width here: floor_thickness is 6 layers
+// and sleeve_z_gap is 4 layers, so slicing at a height these aren't a multiple
+// of puts the floor and the lid's stop mid-layer. The original design used
+// 0.27; 0.2 is the common default for a 0.4 nozzle and is what ships here.
 // ---------------------------------------------------------------------------
 nozzle_width= 0.4;
-layer_height= 0.27;
+layer_height= 0.2;
 
 // ---------------------------------------------------------------------------
 // Which faction to build. Override it from the command line:
@@ -30,11 +35,24 @@ faction= "shaper";
 // boxes come out a little fatter than the runner boxes.
 // ---------------------------------------------------------------------------
 
-// Thickness of one sleeved card. 0.525 is what the original design implied
-// (it quoted its 31.5mm cavity as "roughly 60 cards"). If your sleeves are
-// thicker or thinner, stand a known number of sleeved cards on edge, measure
-// the stack, and divide.
-sleeved_card_thickness= 0.525;
+// How the cards are sleeved: "none", "single" or "double".
+card_sleeving= "single";
+
+// Thickness of one card at each sleeving level, in mm.
+//   none   -- a bare Netrunner card is a hair over 0.3mm
+//   single -- one standard sleeve; 0.525 is what the original design implied,
+//             since it quoted its 31.5mm cavity as "roughly 60 cards"
+//   double -- a perfect-fit inner sleeve plus a standard outer one
+// Sleeve brands vary, so treat these as starting points: stand a known number
+// of cards on edge, measure the stack, divide, and edit the row you use.
+sleeving_table= [
+	["none",   0.31],
+	["single", 0.525],
+	["double", 0.72]
+];
+
+// Bypass the table entirely with a measured value, eg -D card_thickness_override=0.6
+card_thickness_override= undef;
 
 // Breathing room (mm) on top of the deck's own thickness, so that a full deck
 // still slides in and out easily instead of wedging between the sleeve walls.
@@ -94,6 +112,18 @@ card_count= is_undef(card_count_override)
 	? (faction_deck_size + extra_card_slots)
 	: card_count_override;
 
+sleeving_matches= [
+	for (index= [0 : (len(sleeving_table) - 1)])
+		if (sleeving_table[index][0] == card_sleeving) index];
+
+assert(
+	(len(sleeving_matches) == 1),
+	str("unknown card_sleeving \"", card_sleeving, "\" -- see sleeving_table"));
+
+sleeved_card_thickness= is_undef(card_thickness_override)
+	? sleeving_table[sleeving_matches[0]][1]
+	: card_thickness_override;
+
 // ---------------------------------------------------------------------------
 // Box geometry. Width and height are set by the cards themselves (a sleeved
 // card is about 66 x 91mm) and so are the same for every faction; only the
@@ -134,7 +164,8 @@ deck_cavity_size= [
 	(deckbox_total_height - (2 * floor_thickness))];
 
 echo(str("Building the ", faction, " deckbox (", faction_side, ", ",
-	card_count, " sleeved cards)."));
+	card_count, " cards, ", card_sleeving, "-sleeved at ",
+	sleeved_card_thickness, "mm each)."));
 echo("This deckbox has a cavity-size of ", deck_cavity_size);
 echo("This deckbox has an outer size of ",
 	[deckbox_width, deckbox_depth, deckbox_total_height]);

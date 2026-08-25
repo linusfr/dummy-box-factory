@@ -62,42 +62,38 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
-      - name: Install semantic-release
-        env:
-          # renovate: datasource=github-releases depName=go-semantic-release/semantic-release
-          SEMREL_VERSION: "v2.31.0"
-        run: |
-          curl -fsSL -o /usr/local/bin/semantic-release \
-            "https://github.com/go-semantic-release/semantic-release/releases/download/${SEMREL_VERSION}/semantic-release_${SEMREL_VERSION}_linux_amd64"
-          chmod +x /usr/local/bin/semantic-release
-
-      - name: Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          OPTS=(
+      # using the action rather than a pinned binary download means Dependabot
+      # keeps it current along with the other actions
+      - name: Work out the next version
+        id: semrel
+        uses: go-semantic-release/action@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          dry: true
+          allow-initial-development-versions: true
+          custom-arguments: >-
             --provider-opt log_order=ctime
             --provider-opt strip_v_tag_prefix=true
-            --commit-analyzer-opt "patch_release_rules=fix,chore(deps)"
-          )
+            --commit-analyzer-opt patch_release_rules=fix,chore(deps)
 
-          # 1. Compute the next version. Empty => nothing releasable, stop.
-          DRY=$(semantic-release --dry "${OPTS[@]}" 2>&1 || true)
-          echo "$DRY"
-          VERSION=$(echo "$DRY" | grep -oiP '(?<=new version: )\d+\.\d+\.\d+' || true)
-          if [ -z "$VERSION" ]; then echo "no release"; exit 0; fi
+      - name: Release
+        if: steps.semrel.outputs.version != ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.semrel.outputs.version }}
+        run: |
+          set -euo pipefail
 
-          # 2. Idempotent: a re-run must not try to cut the same release twice.
+          # idempotent: a re-run must not try to cut the same release twice
           if gh release view "$VERSION" >/dev/null 2>&1; then
             echo "release $VERSION already exists"; exit 0
           fi
 
-          # 3. Rebuild the plates so the release assets match the tagged tree.
+          # rebuild the plates so the release assets match the tagged tree
           nix develop --command just build
 
-          # 4. Cut the release with the STLs attached, so people can download a
-          #    printable plate without cloning or installing OpenSCAD.
+          # attach the STLs so people can download a printable plate without
+          # cloning or installing OpenSCAD
           gh release create "$VERSION" \
             --target "$(git rev-parse HEAD)" \
             --title "$VERSION" \

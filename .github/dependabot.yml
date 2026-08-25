@@ -1,0 +1,15 @@
+version: 2
+updates:
+  # Renovate runs against Codeberg, so GitHub-hosted repos use Dependabot.
+  # Note it has no pre-commit ecosystem: the hook revs in
+  # .pre-commit-config.yaml still need bumping by hand.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - dependencies
+    # semantic-release treats chore(deps) as a patch release, so match it
+    commit-message:
+      prefix: chore
+      include: scope
