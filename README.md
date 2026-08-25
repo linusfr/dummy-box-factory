@@ -20,17 +20,17 @@ moves.
 
 | Side | Factions | Deck | Box |
 |---|---|---|---|
-| Runner | Anarch, Criminal, Shaper | 40 + ID | 78 × **30.5** × 100 mm |
-| Corp | Haas-Bioroid, Jinteki, NBN, Weyland | 44 + ID | 78 × **32.6** × 100 mm |
+| Runner | Anarch, Criminal, Shaper | 40 + ID | 78 × **31.1** × 100 mm |
+| Corp | Haas-Bioroid, Jinteki, NBN, Weyland | 44 + ID | 78 × **33.2** × 100 mm |
 
 Depth is `cards × per-card thickness + 1.5 mm slack + walls`. Sleeves decide the
 rest — there's nearly 20 mm between bare and double-sleeved:
 
 | `card_sleeving` | mm/card | 45-card corp box |
 |---|---|---|
-| `none` | 0.31 | 78 × 23.0 × 100 mm |
-| `single` *(default)* | 0.525 | 78 × 32.6 × 100 mm |
-| `double` | 0.72 | 78 × 41.4 × 100 mm |
+| `none` | 0.31 | 78 × 23.6 × 100 mm |
+| `single` *(default)* | 0.525 | 78 × 33.2 × 100 mm |
+| `double` | 0.72 | 78 × 42.0 × 100 mm |
 
 Sleeve brands vary. Stand a known stack on edge, measure it, edit the row.
 

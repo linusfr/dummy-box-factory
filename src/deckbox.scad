@@ -30,6 +30,10 @@ layer_height= 0.2;
 // ---------------------------------------------------------------------------
 faction= "shaper";
 
+// "plate" lays the bottom and lid side by side for printing. "whole" assembles
+// them into the finished box, which is only useful for renders.
+render_mode= "plate";
+
 // ---------------------------------------------------------------------------
 // Deck sizing. The box is only as deep as the deck it has to hold, so the corp
 // boxes come out a little fatter than the runner boxes.
@@ -139,7 +143,18 @@ sleeve_z_gap= (4 * layer_height);
 sleeve_wall_thickness= (4 * nozzle_width);
 
 hex_pattern_line_width= 1.5;
-hex_pattern_depth= (0.75 * nozzle_width);
+// Relief depth of the hex texture. At 0.75 nozzles the grooves were under one
+// extrusion wide and the texture all but vanished once printed; 1.5 gives the
+// slicer a full bead to work with. outer_sleeve_wall_thickness absorbs this, so
+// deepening the pattern thickens the wall behind it rather than thinning it.
+hex_pattern_depth= (1.5 * nozzle_width);
+
+// The top and bottom faces carry raised hexagons rather than recessed ones, so
+// their relief is the first thing the printer lays down -- a field of separate
+// islands until the grout lines close over. One layer keeps that to a single
+// island layer; at the full pattern depth it would be three, which is a lot of
+// disconnected first-layer area to ask the bed to hold.
+hex_pattern_floor_depth= layer_height;
 
 inner_sleeve_wall_thickness= sleeve_wall_thickness;
 outer_sleeve_wall_thickness= (sleeve_wall_thickness + hex_pattern_depth);
@@ -171,7 +186,9 @@ echo("This deckbox has an outer size of ",
 	[deckbox_width, deckbox_depth, deckbox_total_height]);
 
 emblem_frame_width= (0.85 * deckbox_width);
-emblem_depth= (0.75 * nozzle_width);
+// The emblem is raised off the floor of its recessed frame, so matching the
+// pattern depth is what leaves it flush with the surrounding face.
+emblem_depth= hex_pattern_depth;
 
 // Emblems traced by hand -- or converted from someone else's artwork -- very
 // often contain contours that touch or overlap themselves. Extruding one of
@@ -307,11 +324,12 @@ module beveled_cube(
 
 module deckbox_face_pattern(
 	side_size,
-	is_positive)
+	is_positive,
+	depth= hex_pattern_depth)
 {
 	translate([0, 0, -csg_overlap])
 	linear_extrude(
-		height= (hex_pattern_depth + csg_overlap),
+		height= (depth + csg_overlap),
 		convexity= 4)
 	hexagon_lattice_bounded(
 		lattice_size= side_size,
@@ -401,7 +419,8 @@ module deckbox_bottom_hex_pattern()
 	{
 		deckbox_face_pattern(
 			[deckbox_width, deckbox_depth],
-			is_positive= false);
+			is_positive= false,
+			depth= hex_pattern_floor_depth);
 	}
 	else
 	{
@@ -409,7 +428,8 @@ module deckbox_bottom_hex_pattern()
 		rotate([0, 0, 90])
 		deckbox_face_pattern(
 			[deckbox_depth, deckbox_width],
-			is_positive= false);
+			is_positive= false,
+			depth= hex_pattern_floor_depth);
 	}
 }
 
@@ -612,7 +632,21 @@ module deckbox_plate(
 	}
 }
 
-deckbox_plate(
-	emblem_filename= faction_emblem_filename,
-	emblem_scale= faction_emblem_scale,
-	emblem_xy_offset= faction_emblem_xy_offset);
+assert(
+	((render_mode == "plate") || (render_mode == "whole")),
+	str("unknown render_mode \"", render_mode, "\" -- use \"plate\" or \"whole\""));
+
+if (render_mode == "whole")
+{
+	deckbox_whole(
+		emblem_filename= faction_emblem_filename,
+		emblem_scale= faction_emblem_scale,
+		emblem_xy_offset= faction_emblem_xy_offset);
+}
+else
+{
+	deckbox_plate(
+		emblem_filename= faction_emblem_filename,
+		emblem_scale= faction_emblem_scale,
+		emblem_xy_offset= faction_emblem_xy_offset);
+}

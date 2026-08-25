@@ -117,9 +117,15 @@ previews:
 	mkdir -p images/renders
 	for faction in {{ factions }}; do
 		printf 'rendering %s\n' "$faction"
-		{{ openscad }} -D "faction=\"$faction\"" -o "images/renders/deckbox_${faction}.png" \
-			--imgsize=800,800 --projection=o --camera=39,35,46,68,0,22,320 \
-			--colorscheme=Tomorrow src/deckbox.scad 2>/dev/null
+		# --render forces the CGAL pipeline. The default OpenCSG preview shades
+		# the recessed hexagons identically to the ribs between them, so the
+		# texture disappears and the walls come out flat.
+		# render_mode=whole assembles the box; the plate layout the STLs use puts
+		# the lid off to one side and reads badly as a picture.
+		{{ openscad }} --render -D "faction=\"$faction\"" -D 'render_mode="whole"' \
+			-o "images/renders/deckbox_${faction}.png" \
+			--imgsize=900,1000 --projection=o --camera=39,16,50,62,0,28,330 \
+			--colorscheme=DeepOcean src/deckbox.scad 2>/dev/null
 	done
 
 # ==========================================
