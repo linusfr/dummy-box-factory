@@ -32,13 +32,9 @@ rest — there's nearly 20 mm between bare and double-sleeved:
 | `single` *(default)* | 0.6 | 78 × 38.1 × 100 mm | **measured** |
 | `double` | 0.72 | 78 × 43.5 × 100 mm | *estimated* |
 
-Measured with a caliper: a bare Netrunner card is 0.34 mm, and 31 cards in
-**Dragon Shield** sleeves came to 18.69 mm, so 0.603 each. Only `single` has
-actually been printed and filled, though. `double` is calculated rather than
-measured — double-sleeving varies a lot depending on which inner and outer you
-pair.
-
-Sleeve brands vary. Stand a known stack on edge, measure it, edit the row.
+Measured with a caliper: a bare card is 0.34 mm, and 31 cards in **Dragon
+Shield** sleeves came to 18.69 mm. One sleeved card is 66.24 × 92.29 mm. Other
+sleeves: stand a known stack on edge, measure it, edit the row.
 
 ## Jack in
 
@@ -100,23 +96,15 @@ Every run echoes the resulting cavity and outer size.
 **The boxes ship with magnet pockets, sized for 3 × 2 mm discs.** Two per box —
 one in the lid, one in the body — at diagonally opposite corners.
 
-Nothing about the outside changes. 3 mm is the largest that fits inside the
-existing corner without the box growing a lump: the pocket tucks between the
-outer chamfer and the card cavity, the sleeve is notched away at those two
-corners, and the lid keeps material there instead of hollowing it for the
-sleeve. All of that is internal.
-
-The notch runs the **full height** of the sleeve, and it has to. The lid's
-column sits at the mouth of its sleeve pocket, so the whole sleeve travels past
-it on the way in — notch only as far down as the magnet reaches and the lid
-jams a millimetre after it touches down, while still looking perfect in a
-render, because the two halves clear each other seated and nowhere else.
-
-They hold roughly 200 g, comfortably more than a loaded box weighs. The sleeve
-is still the real closure; the magnets just make it click.
+3 mm is the largest that fits inside the existing corner, so the outside
+doesn't change. They hold roughly 200 g, more than a loaded box weighs; the
+sleeve is still the real closure, the magnets just make it click.
 
 Glue them in against the 0.2 mm recess, and **watch the polarity** — one flipped
 magnet gives you a lid that pushes itself off. Mark the stack before you start.
+
+No magnets: `just magnets=0 build`, or set `magnet_diameter = 0` in
+`src/deckbox.scad` to make it permanent.
 
 ### Test the corner first
 
@@ -127,29 +115,10 @@ just corner jinteki    # ...or a specific faction
 
 ![the corner coupon](images/renders/corner_test.png)
 
-Both halves cropped to one magnet corner, 25 mm along each wall, plated the way
-the real STLs are. The full-height notch is the slot up the sleeve corner on the
-right; the lid's column and its pocket are on the left. It carries the whole closure — pocket, notch, column, sleeve
-— so it tells you whether the lid seats and whether your magnets drop into
-their pockets, in a few minutes of printing instead of a few hours.
-
-It's a scrap: it lands in `out/`, and `just clean` bins it.
-
-Two things it won't tell you. It's one corner, so it can rock in ways the whole
-box can't — sliding it on straight is on you. And 25 mm of sleeve friction is
-not 78 mm of it, so judge `sleeve_xy_gap` on a real box.
-
-### Printing without magnets
-
-```bash
-just magnets=0 build              # all of them
-just magnets=0 build-one criminal # just the one
-```
-
-Those land in `out/`, so they can't overwrite the committed plates. To make it
-permanent, set `magnet_diameter = 0` at the top of `src/deckbox.scad` — that
-drops the pockets, the sleeve notch and the lid column together, leaving the box
-exactly as it was before magnets existed.
+Both halves cropped to one magnet corner, 25 mm along each wall. It tells you
+whether the lid seats and the magnets drop in, in minutes instead of hours.
+25 mm of sleeve friction is not 78 mm of it, though: judge `sleeve_xy_gap` on a
+real box.
 
 ### Bigger magnets
 
@@ -167,6 +136,50 @@ through the lid's top plate. Diameter is what costs you silhouette.
 
 If the lid ends up too grabby with magnets *and* sleeve friction, loosen
 `sleeve_xy_gap` rather than reaching for weaker magnets.
+
+## Organizer
+
+A drawer organizer for a whole card pool: an outer sleeve, a drawer and one
+tray per faction. Remixed from the
+[Netrunner NSG Organizer](https://makerworld.com/models/2956774), whose fixed
+ceiling jams Dragon Shield-sleeved cards; here every height comes from the card.
+
+![the organizer, drawer half out](images/renders/organizer.png)
+
+```bash
+just organizer                           # every part, into files/
+just tray_set=system_gateway organizer   # 25-card trays, 62-card neutral
+just organizer-size                      # dimensions only
+```
+
+| Part | Print |
+|---|---|
+| `organizer_outer` | Standing on its closed end, about 195 mm tall |
+| `organizer_drawer` | Upright |
+| `organizer_tray_<faction>` | Upright; 30 cards each |
+| `organizer_rail` | Flat; two per joint, to join sleeves via their dovetail grooves |
+
+### Other sleeves
+
+The full set is about 19 hours of printing. Measure one sleeved card (height:
+longest of ten, across the open end; thickness: 30 on edge, squeezed, ÷ 30),
+then export four test pieces into `out/`:
+
+```bash
+just card_height=92.29 card_width=66.24 card_thickness=0.6 organizer-tests
+```
+
+Print them in order and stop at the first failure:
+
+| Piece | Pass | Else adjust |
+|---|---|---|
+| `organizer_gauge` | A sleeved card clears its ceiling by about 2 mm | `card_height` |
+| `organizer_rail` | Slides into a gauge groove, firm but not forced | `rail_gap` |
+| `organizer_tray_jinteki` | 30 cards slide in; walls about 1 mm above them | `tray_stack_slack`, `card_width` |
+| `organizer_drawer_slice` | Loaded tray in the drawer passes through the ring without catching | `outer_gap`, `outer_top_gap`, `drawer_tray_gap` |
+
+Then `organizer` with the same values. Custom sizes land in `out/`; to make them
+the default, edit `sleeving_table` in `src/organizer.scad`.
 
 ## New emblems
 
@@ -194,12 +207,13 @@ erode/dilates every emblem (`emblem_cleanup_epsilon`) to head it off.
 | Path | What |
 |---|---|
 | `src/deckbox.scad` | The generator, driven by `faction_table` |
+| `src/organizer.scad` | The organizer, driven by `sleeving_table` and `tray_table` |
 | `src/svg2dxf.py` | Filled SVG → OpenSCAD-importable DXF |
 | `src/stl_equal.py` | Compares STLs by geometry, not bytes |
 | `src/emblems/` | `<faction>.dxf`, generated from `svg_sources/<faction>.svg` |
 | `files/` | Exported print plates |
 | `out/` | Custom builds; gitignored |
-| `images/renders/` | A render per faction, plus the corner coupon |
+| `images/renders/` | A render per faction, the corner coupon and the organizer |
 
 `just build` only rewrites plates whose geometry actually changed, so rebuilds
 leave the tree clean.
@@ -222,6 +236,7 @@ every STL attached.
 ## Credits
 
 - Design: Thingiverse user **Austin**, [thing:39997](https://www.thingiverse.com/thing:39997) (CC BY-SA)
+- Organizer: [Netrunner NSG Organizer](https://makerworld.com/models/2956774) on MakerWorld (CC BY-NC-SA)
 - Emblems: [Netrunner-Icon-Font](https://github.com/MWDelaney/Netrunner-Icon-Font) by Michael W. Delaney (MIT)
 
 See [LICENSE](LICENSE). *Android: Netrunner* and the faction logos belong to

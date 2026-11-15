@@ -10,8 +10,19 @@ does not state a version.
 This repository is a derivative work and is released under the same terms:
 **Creative Commons Attribution-ShareAlike** — <https://creativecommons.org/licenses/by-sa/4.0/>
 
-That covers `src/deckbox.scad`, the exported STLs in `files/`, and the renders
+That covers `src/deckbox.scad`, the `files/deckbox_*.stl` it exports, and the renders
 in `images/renders/`.
+
+## The organizer
+
+`src/organizer.scad` and the `files/organizer_*.stl` it exports are remixed from
+**"Netrunner NSG Organizer"** on MakerWorld — <https://makerworld.com/models/2956774> —
+which is licensed **Creative Commons Attribution-NonCommercial-ShareAlike**.
+They are released under the same terms:
+<https://creativecommons.org/licenses/by-nc-sa/4.0/>
+
+The geometry was rebuilt from measurements of the original. None of its meshes
+are included.
 
 ## The emblem artwork
 

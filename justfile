@@ -7,6 +7,14 @@ sleeving := env_var_or_default("SLEEVING", "single")
 # magnet diameter in mm; 0 prints the box with no pockets at all
 magnets := env_var_or_default("MAGNETS", "3")
 factions := "anarch criminal shaper haas_bioroid jinteki nbn weyland generic"
+# organizer only: "standard" or "system_gateway" tray widths
+tray_set := env_var_or_default("TRAY_SET", "standard")
+# organizer only: one measured sleeved card in mm, each overriding its column
+# of sleeving_table; empty uses the table
+card_height := env_var_or_default("CARD_HEIGHT", "")
+card_width := env_var_or_default("CARD_WIDTH", "")
+card_thickness := env_var_or_default("CARD_THICKNESS", "")
+trays := "anarch criminal shaper haas_bioroid jinteki nbn weyland neutral"
 
 # ==========================================
 # DEFAULT
@@ -114,7 +122,105 @@ clean:
 	for faction in {{ factions }}; do
 		rm -f "files/deckbox_${faction}.stl"
 	done
+	rm -f files/organizer_*.stl
 	rm -rf out
+
+# ==========================================
+# ORGANIZER
+# ==========================================
+
+# Export the organizer: sleeve, drawer, joining rail and one tray per faction
+organizer:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	opts=(sleeving='{{ sleeving }}' tray_set='{{ tray_set }}' card_height='{{ card_height }}'
+		card_width='{{ card_width }}' card_thickness='{{ card_thickness }}')
+	just "${opts[@]}" organizer-part outer
+	just "${opts[@]}" organizer-part drawer
+	just "${opts[@]}" organizer-part rail
+	for tray in {{ trays }}; do
+		just "${opts[@]}" organizer-part tray "$tray"
+	done
+
+# Export one organizer part, eg `just organizer-part drawer` or `just organizer-part tray jinteki`
+organizer-part part faction="":
+	#!/usr/bin/env bash
+	set -euo pipefail
+	tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+	override=(-D 'part="{{ part }}"' -D 'card_sleeving="{{ sleeving }}"' -D 'tray_set="{{ tray_set }}"')
+	name="organizer_{{ part }}"
+	if [ -n '{{ faction }}' ]; then
+		override+=(-D 'faction="{{ faction }}"')
+		name="${name}_{{ faction }}"
+	fi
+	suffix=""
+	if [ -n '{{ card_height }}' ]; then
+		override+=(-D 'card_height_override={{ card_height }}')
+		suffix="${suffix}_h{{ card_height }}"
+	fi
+	if [ -n '{{ card_width }}' ]; then
+		override+=(-D 'card_width_override={{ card_width }}')
+		suffix="${suffix}_w{{ card_width }}"
+	fi
+	if [ -n '{{ card_thickness }}' ]; then
+		override+=(-D 'card_thickness_override={{ card_thickness }}')
+		suffix="${suffix}_t{{ card_thickness }}"
+	fi
+	if [ '{{ tray_set }}' != standard ]; then
+		suffix="${suffix}_{{ tray_set }}"
+	fi
+	if [ '{{ sleeving }}' != single ]; then
+		suffix="${suffix}_{{ sleeving }}"
+	fi
+	# test pieces are scrap prints, so they never land in files/
+	if [ -n "$suffix" ] || [ '{{ part }}' = gauge ] || [ '{{ part }}' = drawer_slice ]; then
+		mkdir -p out
+		out="out/${name}${suffix}.stl"
+	else
+		out="files/${name}.stl"
+	fi
+	if ! {{ openscad }} "${override[@]}" -o "$tmp/out.stl" src/organizer.scad > "$tmp/log" 2>&1; then
+		cat "$tmp/log"; exit 1
+	fi
+	grep -E 'WARNING|ERROR' "$tmp/log" || true
+	if [ -f "$out" ] && python3 src/stl_equal.py "$out" "$tmp/out.stl" >/dev/null; then
+		printf '%-48s unchanged\n' "$out"
+	else
+		mv "$tmp/out.stl" "$out"
+		printf '%-48s updated\n' "$out"
+	fi
+
+# Export the four test pieces, to check a sleeve setup before the full prints
+organizer-tests:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	opts=(sleeving='{{ sleeving }}' tray_set='{{ tray_set }}' card_height='{{ card_height }}'
+		card_width='{{ card_width }}' card_thickness='{{ card_thickness }}')
+	just "${opts[@]}" organizer-part gauge
+	just "${opts[@]}" organizer-part rail
+	just "${opts[@]}" organizer-part tray jinteki
+	just "${opts[@]}" organizer-part drawer_slice
+
+# Print the organizer's derived sizes without exporting anything
+organizer-size:
+	#!/usr/bin/env bash
+	set -euo pipefail
+	tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+	override=(-D 'part="drawer"' -D 'card_sleeving="{{ sleeving }}"' -D 'tray_set="{{ tray_set }}"')
+	if [ -n '{{ card_height }}' ]; then
+		override+=(-D 'card_height_override={{ card_height }}')
+	fi
+	if [ -n '{{ card_width }}' ]; then
+		override+=(-D 'card_width_override={{ card_width }}')
+	fi
+	if [ -n '{{ card_thickness }}' ]; then
+		override+=(-D 'card_thickness_override={{ card_thickness }}')
+	fi
+	{{ openscad }} "${override[@]}" -o "$tmp/size.echo" src/organizer.scad 2>/dev/null
+	if grep -q '^ERROR' "$tmp/size.echo"; then
+		grep -E '^(ERROR|WARNING)' "$tmp/size.echo" >&2; exit 1
+	fi
+	sed -n 's/^ECHO: "\(.*\)"$/\1/p' "$tmp/size.echo"
 
 # ==========================================
 # ARTWORK
@@ -131,7 +237,7 @@ emblems:
 		python3 src/svg2dxf.py "$svg" "src/emblems/${faction}.dxf" 76
 	done
 
-# Refresh the preview render for every faction into images/renders/
+# Refresh the preview renders for every faction and the organizer into images/renders/
 previews:
 	#!/usr/bin/env bash
 	set -euo pipefail
@@ -154,6 +260,12 @@ previews:
 		-o images/renders/corner_test.png \
 		--imgsize=900,700 --projection=o --camera=12,30,12,50,0,300,165 \
 		--colorscheme=DeepOcean src/deckbox.scad 2>/dev/null
+	# the organizer renders in preview, not --render: CGAL drops the colours
+	# that tell the trays apart, and there's no texture here for it to lose
+	printf 'rendering organizer\n'
+	{{ openscad }} -D 'assembly_pull=110' -o images/renders/organizer.png \
+		--imgsize=1200,800 --projection=o --camera=0,0,0,58,0,325,500 --autocenter --viewall \
+		--colorscheme=DeepOcean src/organizer.scad 2>/dev/null
 
 # ==========================================
 # CHECKS
@@ -189,7 +301,7 @@ hooks-install:
 	prek install
 
 # Confirm the committed STLs still match what the script produces
-check-stls-current: build
+check-stls-current: build organizer
 	git diff --exit-code -- files/
 
 # Run the full CI pipeline
