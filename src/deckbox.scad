@@ -134,9 +134,9 @@ sleeved_card_thickness= is_undef(card_thickness_override)
 	: card_thickness_override;
 
 // ---------------------------------------------------------------------------
-// Box geometry. Width and height are set by the cards themselves (a sleeved
-// card is about 66 x 91mm) and so are the same for every faction; only the
-// depth follows the deck size.
+// Box geometry. Width and height are set by the cards themselves (a card in a
+// Dragon Shield sleeve measures 66.24 x 92.29mm) and so are the same for every
+// faction; only the depth follows the deck size.
 // ---------------------------------------------------------------------------
 deckbox_width= 78;
 deckbox_total_height= 100;
@@ -144,7 +144,8 @@ deckbox_lid_height= 20;
 
 // Tall enough that a sleeved card sits fully inside the bottom half. At 12 the
 // bottom's interior was 90.8mm and cards stood proud of the open box; 15 gives
-// 93.8mm. Raise it if your sleeves are taller than that.
+// 93.8mm, 1.5mm over a 92.29mm Dragon Shield-sleeved card. Raise it if your
+// sleeves are taller than that.
 sleeve_height= 15;
 sleeve_xy_gap= 0.25; // decrease if the fit is too loose, increase if it's too tight
 sleeve_z_gap= (4 * layer_height);
